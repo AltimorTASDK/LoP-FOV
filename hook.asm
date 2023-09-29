@@ -34,14 +34,15 @@ hook_ALCameraManager_UpdateCamera_set_lag PROC
         ret
 hook_ALCameraManager_UpdateCamera_set_lag ENDP
 
-EXTERN distance_multiplier: DWORD
+EXTERN distance_multiplier: REAL4
 
 PUBLIC hook_FLRotationAccordingToMovement_UpdateRotation_scale
 hook_FLRotationAccordingToMovement_UpdateRotation_scale PROC
         movss   dword ptr [rsp+8+48h], xmm0
-        movss   xmm0, [distance_multiplier]
+        movss   xmm0, distance_multiplier
         mulss   xmm6, xmm0
         addss   xmm6, dword ptr [rsp+8+34h]
+        mov     rax, rcx ; Gets clobbered by hook thunk
         ret
 hook_FLRotationAccordingToMovement_UpdateRotation_scale ENDP
 
