@@ -52,12 +52,14 @@ struct USpringArmComponent {
 
 constexpr auto DEFAULT_FOV = 75.f;
 constexpr auto DEFAULT_DISTANCE = 350.f;
+constexpr auto DEFAULT_ROTATE_SPEED = 1.f;
 
-extern "C" float fov_multiplier;
-extern "C" float distance_multiplier;
+// Used by asm
+extern "C" float rotate_multiplier;
 
 float fov_multiplier;
 float distance_multiplier;
+float rotate_multiplier;
 
 static float scale_fov(float fov, float multiplier)
 {
@@ -84,6 +86,7 @@ static void read_config()
 	auto file = std::ifstream("fov.ini");
 	auto fov = DEFAULT_FOV;
 	auto distance = DEFAULT_DISTANCE;
+	auto rotate_speed = DEFAULT_ROTATE_SPEED;
 
 	std::string line;
 
@@ -114,10 +117,13 @@ static void read_config()
 			fov = value;
 		else if (key == "Distance")
 			distance = value;
+		else if (key == "AutoRotateSpeed")
+			rotate_speed = value;
 	}
 
 	fov_multiplier = tanf(fov * M_PI / 360) / tanf(DEFAULT_FOV * M_PI / 360);
 	distance_multiplier = distance / DEFAULT_DISTANCE / fov_multiplier;
+	rotate_multiplier = rotate_speed / DEFAULT_ROTATE_SPEED * distance_multiplier;
 }
 
 static std::tuple<std::byte*, std::byte*> get_module_bounds(const char *name)
@@ -205,12 +211,14 @@ static void apply_hooks()
 
 	auto *rotate_target = sigscan(
 		"LOP-Win64-Shipping.exe",
-		// movss [rsp+0x48], xmm0
-		// addss xmm6, [rsp+0x34]
-		"\xF3\x0F\x11\x44\x24\x48\xF3\x0F\x58\x74\x24\x34",
-		"xxxxxxxxxxxx");
+		// ucomiss xmm2, xmm0
+		// shufps xmm6, xmm6, 0x55
+		// movaps xmm3, xmm6
+		// andps xmm3, xmm4
+		"\x0F\x2E\xD0\x0F\xC6\xF6\x55\x0F\x28\xDE\x0F\x54\xDC",
+		"xxxxxxxxxxxxx");
 
-	apply_call_hook(rotate_target, hook_FLRotationAccordingToMovement_UpdateRotation_scale, 12);
+	apply_call_hook(rotate_target, hook_FLRotationAccordingToMovement_UpdateRotation_scale, 13);
 }
 
 BOOL WINAPI DllMain(HINSTANCE instance, DWORD reason, void *reserved)
